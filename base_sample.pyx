@@ -2,11 +2,12 @@
 from sys import argv, stderr, stdout, exit
 from collections import defaultdict
 from random import random, shuffle, seed
-from math import log
 from distance import levenshtein
 from tqdm import tqdm
 
 from split import sample_next, sample_nth, get_init_split, get_str
+
+from libc.math cimport log
 
 seed(0)
 
@@ -35,7 +36,10 @@ def get_sl_prob(s, l, alpha, params):
     return (alpha * bjc + jc)**2/((alpha*bcs + cs)*(alpha*bcl + cl))
 
 def entropy(params):
-    cdef int tot = 0
+    cdef float tot = 0
+    cdef float H
+    cdef unicode s
+    cdef unicode l
     for s in params[JC]:
         for l in params[JC][s]:
             tot += params[JC][s][l]
@@ -48,15 +52,19 @@ def entropy(params):
                 H -= log(params[JC][s][l]/tot)
     return H
 
-def update_counts(split,assignment,wf,params,incr):
-    for i,s in enumerate(split):
+def update_counts(split, assignment, wf, params, incr):
+    cdef int i
+    cdef int s
+    cdef unicode l
+    cdef unicode pl
+    for i, s in enumerate(split):
         if i == len(split) - 1:
             break
         for l in assignment[i]:
-            params[JC][get_str(i,split,wf)][gl(l)] += incr
+            params[JC][get_str(i, split, wf)][gl(l)] += incr
 #            params[C][get_str(i,split,wf)] += incr
             params[C][gl(l)] += incr
-        params[C][get_str(i,split,wf)] += incr
+        params[C][get_str(i, split, wf)] += incr
 
         if i == 0:
             for l in assignment[i]:
@@ -68,13 +76,17 @@ def update_counts(split,assignment,wf,params,incr):
                     if not '=' in pl:
                         params[C]["STEM"] += 1
 
+
 def get_trans_prob(pls,l,params):
-    prob = 1.0
+    cdef float prob = 1.0
+    cdef unicode pl
+    cdef unicode plabel
+    cdef unicode label
     for pl in pls:
         plabel = pl if ('=' in pl or pl == '#') else "STEM"
         label = pl if ('=' in pl or pl == '#') else "STEM"
         prob *= params[TC][gl(plabel)][gl(label)]/(params[C][pl]+1)
-    assert(prob != 0)
+    assert prob != 0
     return prob
 
 def get_prob(split, assignment, wf, alpha, params):
@@ -212,6 +224,8 @@ def segment(train_data, test_data, N=1000):
     cdef float old_prob
     cdef float new_prob
     
+    cdef int n
+    
     logfile = open("logfile",'w')
     for n in range(N):
         for j, s in enumerate(splits):
@@ -247,6 +261,17 @@ def segment(train_data, test_data, N=1000):
     cdef list result = []
     cdef list temp
     
+    cdef list best_split
+    cdef list best_assign
+    cdef float best_score
+    cdef list split
+    cdef list assign
+    cdef float old_score
+    cdef list new_assign
+    cdef float new_score
+    cdef list ss
+    cdef unicode s1
+    
     with tqdm(total=len(best_assignments)-len(train_data)) as pbar:
         for i, a  in enumerate(best_assignments):
             if i + 1 < len(train_data):
@@ -274,10 +299,10 @@ def segment(train_data, test_data, N=1000):
 
             ss = [get_str(j, best_split, wfs[i]) for j in range(len(best_split) - 1)]
             temp = []
-            for j, s in enumerate(ss):
-                temp.append("%s/%s"%(s, ','.join(best_assign[j])))
+            for j, s1 in enumerate(ss):
+                temp.append("%s/%s"%(s1, ','.join(best_assign[j])))
                 if j + 1 < len(ss):
                     temp.append(" ")
-            result.append(''.join(temp).replace('\n', ''))
+            result.append(''.join(temp))
             pbar.update(1)
     return '\n'.join(result)
