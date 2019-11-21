@@ -5,7 +5,10 @@ from random import random, shuffle, seed
 from distance import levenshtein
 from tqdm import tqdm
 
-from split import sample_next, sample_nth, get_init_split, get_str
+try:
+    from split import sample_next, sample_nth, get_init_split, get_str
+except ImportError:
+    from src.split import sample_next, sample_nth, get_init_split, get_str
 
 from libc.math cimport log
 
@@ -22,7 +25,7 @@ cdef int TC=4
 def gl(s):
     return "LABEL:" + s 
 
-def get_sl_prob(s, l, alpha, params):
+def get_sl_prob(unicode s, unicode l, float alpha, tuple params):
     assert(s != '')
     if not '=' in l:
         return .5**(levenshtein(s,l))
@@ -35,7 +38,7 @@ def get_sl_prob(s, l, alpha, params):
     cdef float cl = params[C][gl(l)]
     return (alpha * bjc + jc)**2/((alpha*bcs + cs)*(alpha*bcl + cl))
 
-def entropy(params):
+def entropy(tuple params):
     cdef float tot = 0
     cdef float H
     cdef unicode s
@@ -52,7 +55,7 @@ def entropy(params):
                 H -= log(params[JC][s][l]/tot)
     return H
 
-def update_counts(split, assignment, wf, params, incr):
+def update_counts(list split, list assignment, unicode wf, tuple params, int incr):
     cdef int i
     cdef int s
     cdef unicode l
@@ -76,8 +79,7 @@ def update_counts(split, assignment, wf, params, incr):
                     if not '=' in pl:
                         params[C]["STEM"] += 1
 
-
-def get_trans_prob(pls,l,params):
+def get_trans_prob(list pls, unicode l, tuple params):
     cdef float prob = 1.0
     cdef unicode pl
     cdef unicode plabel
@@ -89,10 +91,11 @@ def get_trans_prob(pls,l,params):
     assert prob != 0
     return prob
 
-def get_prob(split, assignment, wf, alpha, params):
+def get_prob(list split, list assignment, unicode wf, float alpha, tuple params):
     cdef float tot = 1
     cdef int s
     cdef unicode l
+    cdef int i
     for i, s in enumerate(split):
         if i == len(split) - 1:
             continue
@@ -104,11 +107,14 @@ def get_prob(split, assignment, wf, alpha, params):
                 tot *= get_trans_prob(assignment[i-1], l, params)
     return tot
 
-def sample_from(scores):
-    tot = sum([x[0] for x in scores])
-    r = tot * random()
-    acc = 0
-    for j,sl in enumerate(scores):
+def sample_from(list scores):
+    cdef float tot = sum([x[0] for x in scores])
+    cdef float r = tot * random()
+    cdef float acc = 0
+    cdef int j
+    cdef tuple sl
+    cdef float score
+    for j, sl in enumerate(scores):
         score, l = sl
         if score == 0:
             continue
@@ -118,7 +124,7 @@ def sample_from(scores):
     print(acc,tot)
     assert(0)
 
-def get_assignment(split, labels, wf, alpha, params):
+def get_assignment(list split, list labels, unicode wf, float alpha, tuple params):
     cdef list assignment = [[] for i in range(len(split) - 1)]
 #    assignment = [[] for i in range(len(split))]
     cdef list used_labels = [0 for l in labels]
@@ -127,6 +133,7 @@ def get_assignment(split, labels, wf, alpha, params):
     cdef int s
     cdef unicode l
     cdef int j
+    cdef float p
     
     for i, s in enumerate(split):
         if i + 1 == len(split):
@@ -156,7 +163,7 @@ def filter_labels(labels):
 #                                          "num=PLV","num=SGV","case=NOM"]]
 
 
-def segment(train_data, test_data, N=1000):
+def segment(list train_data, list test_data, N=1000):
     shuffle(train_data)
 
     all_data = train_data + test_data
@@ -226,7 +233,7 @@ def segment(train_data, test_data, N=1000):
     
     cdef int n
     
-    logfile = open("logfile",'w')
+    #logfile = open("logfile",'w')
     for n in range(N):
         for j, s in enumerate(splits):
             new_split = sample_next(splits[j], len(labels[j]))
@@ -240,8 +247,8 @@ def segment(train_data, test_data, N=1000):
                 assignments[j] = new_assignment
                 update_counts(splits[j],assignments[j],wfs[j],params,1)
         H = entropy(params)
-        logfile.write("%.3f\n" % H)
-        logfile.flush()
+        #logfile.write("%.3f\n" % H)
+        #logfile.flush()
         if H < best_H:
             best_splits = list(splits)
             best_assignments = list(assignments)

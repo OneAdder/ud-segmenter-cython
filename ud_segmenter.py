@@ -3,7 +3,7 @@ try:
     import base_sample
 except ModuleNotFoundError:
     import pyximport; pyximport.install()
-    import base_sample
+    import src.base_sample as base_sample
 
 def run(train_data, test_data, N=1000):
     """Runs the model on given datasets and outputs the segmented version
