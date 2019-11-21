@@ -1,6 +1,6 @@
 ## What is it?
 It's a UD segmenter I forked from [here](https://github.com/mpsilfve/ud-segmenter)
-to make it a bit more user-friendly and hopefully a bit faster.
+to make it a bit more user-friendly and hopefully a bit faster (no, something keeps bottlenecking).
 
 More on UD [here](https://universaldependencies.org/).
 
